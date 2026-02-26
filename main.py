@@ -1,15 +1,15 @@
 import arcade
 import arcade.gui
 
-SCREEN_WIDTH = 960
+SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-SCREEN_TITLE = "Dungeon Game"
+SCREEN_TITLE = "Dungeon Platformer"
 
 TILE_SCALING = 1.0
 PLAYER_SCALING = 0.35
 
 GRAVITY = 1.2
-PLAYER_MOVEMENT_SPEED = 6
+PLAYER_MOVEMENT_SPEED = 4
 PLAYER_JUMP_SPEED = 15
 
 LAYER_OPTIONS = {
@@ -23,8 +23,6 @@ LAYER_OPTIONS = {
 class Player(arcade.Sprite):
     def __init__(self):
         super().__init__("assets/player.png", PLAYER_SCALING)
-        self.max_hp = 100
-        self.hp = 100
 
 
 # ---------------- GAME VIEW ---------------- #
@@ -48,13 +46,9 @@ class GameView(arcade.View):
         self.max_hp = 100
         self.hp = 100
 
-        self.manager = arcade.gui.UIManager()
-        self.hp_bar = None
-
     def setup(self):
 
-        self.manager.enable()
-        self.manager.clear()
+        self.hp = self.max_hp
 
         tile_map = arcade.load_tilemap(
             "assets/level_0.tmx",
@@ -70,8 +64,8 @@ class GameView(arcade.View):
         self.player.center_y = 256
         self.scene.add_sprite("Player", self.player)
 
-        # --- Enemies (пример) ---
-        enemy = arcade.Sprite("assets/player.png", 0.7)
+        # --- Enemy example ---
+        enemy = arcade.Sprite("assets/player.png", PLAYER_SCALING)
         enemy.center_x = 600
         enemy.center_y = 256
         self.scene.add_sprite("Enemies", enemy)
@@ -84,13 +78,9 @@ class GameView(arcade.View):
             ladders=self.scene["ladders"]
         )
 
-        # --- Camera ---
+        # --- Cameras ---
         self.camera = arcade.Camera2D()
         self.gui_camera = arcade.Camera2D()
-
-        anchor = arcade.gui.UIAnchorLayout()
-        anchor.add(self.hp_bar, anchor_x="left", anchor_y="top", align_x=20, align_y=-20)
-        self.manager.add(anchor)
 
     # -------- INPUT -------- #
 
@@ -130,9 +120,10 @@ class GameView(arcade.View):
         elif self.right_pressed:
             self.player.change_x = PLAYER_MOVEMENT_SPEED
 
-        # Лестницы
+        # --- Ladder ---
         if self.physics_engine.is_on_ladder():
             self.player.change_y = 0
+
             if self.up_pressed:
                 self.player.change_y = PLAYER_MOVEMENT_SPEED
             elif self.down_pressed:
@@ -140,18 +131,16 @@ class GameView(arcade.View):
 
         self.physics_engine.update()
 
-        # --- Урон от врагов ---
+        # --- Damage from enemies ---
         if "Enemies" in self.scene:
-            enemies_hit = arcade.check_for_collision_with_list(
+            hit_list = arcade.check_for_collision_with_list(
                 self.player,
                 self.scene["Enemies"]
             )
 
-            if enemies_hit:
+            if hit_list:
                 self.hp -= 1
-                self.hp_bar.value = self.hp
 
-        # --- Смерть ---
         if self.hp <= 0:
             self.setup()
 
@@ -171,7 +160,39 @@ class GameView(arcade.View):
             self.scene.draw()
 
         with self.gui_camera.activate():
-            self.manager.draw()
+            bar_width = 300
+            bar_height = 25
+            left = 50
+            bottom = SCREEN_HEIGHT - 50
+
+            # фон
+            arcade.draw_lbwh_rectangle_filled(
+                left,
+                bottom,
+                bar_width,
+                bar_height,
+                arcade.color.DARK_RED
+            )
+
+            # текущее здоровье
+            health_width = bar_width * (self.hp / self.max_hp)
+
+            arcade.draw_lbwh_rectangle_filled(
+                left,
+                bottom,
+                health_width,
+                bar_height,
+                arcade.color.RED
+            )
+
+            arcade.draw_text(
+                f"HP: {self.hp}/{self.max_hp}",
+                left,
+                bottom - 20,
+                arcade.color.WHITE,
+                14
+            )
+
 
 # ---------------- MENU VIEW ---------------- #
 
@@ -185,14 +206,11 @@ class MenuView(arcade.View):
         self.manager.enable()
         self.manager.clear()
 
-        v_box = arcade.gui.UIBoxLayout(space_between=20)
-
         start_button = arcade.gui.UIFlatButton(
             text="Играть",
-            width=200
+            width=200,
+            height=50
         )
-
-        v_box.add(start_button)
 
         @start_button.event("on_click")
         def on_click(event):
@@ -200,8 +218,15 @@ class MenuView(arcade.View):
             game.setup()
             self.window.show_view(game)
 
+        v_box = arcade.gui.UIBoxLayout()
+        v_box.add(start_button)
+
         anchor = arcade.gui.UIAnchorLayout()
-        anchor.add(v_box, anchor_x="center_x", anchor_y="center_y")
+        anchor.add(
+            child=v_box,
+            anchor_x="center_x",
+            anchor_y="center_y"
+        )
 
         self.manager.add(anchor)
 
