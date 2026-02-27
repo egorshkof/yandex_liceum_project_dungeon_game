@@ -8,8 +8,8 @@ SCREEN_HEIGHT = 720
 SCREEN_TITLE = "Dungeon Platformer"
 
 TILE_SCALING = 1.0
-PLAYER_SCALING = 0.35
-ENEMY_SCALING = 0.35
+PLAYER_SCALING = 0.4
+ENEMY_SCALING = 0.4
 
 GRAVITY = 1.2
 PLAYER_MOVEMENT_SPEED = 5
@@ -155,7 +155,7 @@ class Enemy(Character):
 class MeleeEnemy(Enemy):
     def __init__(self):
         super().__init__("assets/enemy_sword.png", ENEMY_SCALING, max_hp=60, aggro_range=220)
-        self.melee = MeleeWeapon(self, damage=12, range_x=45, range_y=30, cooldown=1.1)
+        self.melee = MeleeWeapon(self, damage=18, range_x=50, range_y=40, cooldown=1.0)
         self.speed = 2.2
 
     def update(self, player, delta_time):
@@ -167,9 +167,6 @@ class MeleeEnemy(Enemy):
             direction = 1 if player.center_x > self.center_x else -1
             self.change_x = self.speed * direction
             self.facing = direction
-
-            if distance < 80:
-                self.melee.attack(arcade.SpriteList([player]))
         else:
             self.change_x = 0
 
@@ -188,7 +185,7 @@ class ArcherEnemy(Enemy):
             return
 
         distance = arcade.get_distance_between_sprites(self, player)
-        if distance <= self.aggro_range and distance > 50:
+        if self.aggro_range >= distance > 50:
             self.ranged.attack(player.center_x, player.center_y, scene)
 
         direction = 1 if player.center_x > self.center_x else -1
@@ -213,26 +210,21 @@ class GameView(arcade.View):
         self.right_pressed = False
         self.up_pressed = False
         self.down_pressed = False
-        self.max_hp = 100
-        self.hp = 100
         self.enemies = arcade.SpriteList()
+        self.hp_text = None
 
     def setup(self):
-        self.hp = self.max_hp
         tile_map = arcade.load_tilemap("assets/level_1.tmx", scaling=TILE_SCALING, layer_options=LAYER_OPTIONS)
         self.scene = arcade.Scene.from_tilemap(tile_map)
 
-        # Projectiles layer
         if "Projectiles" not in self.scene:
             self.scene.add_sprite_list("Projectiles")
 
-        # Player
         self.player = Player()
         self.player.center_x = 128
         self.player.center_y = 256
         self.scene.add_sprite("Player", self.player)
 
-        # Enemies
         enemy1 = MeleeEnemy()
         enemy1.center_x = 600
         enemy1.center_y = 256
@@ -244,26 +236,117 @@ class GameView(arcade.View):
         self.enemies.extend([enemy1, enemy2])
         self.scene.add_sprite_list("Enemies", sprite_list=self.enemies)
 
-        # Physics для игрока
+        ladders = self.scene["ladders"] if "ladders" in self.scene else None
+
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player,
             walls=self.scene["walls"],
             gravity_constant=GRAVITY,
-            ladders=self.scene["ladders"] if "ladders" in self.scene else None
+            ladders=ladders
         )
 
-        # Physics для врагов
         for enemy in self.enemies:
             enemy.physics_engine = arcade.PhysicsEnginePlatformer(
                 enemy,
                 walls=self.scene["walls"],
                 gravity_constant=GRAVITY,
-                ladders=self.scene["ladders"] if "ladders" in self.scene else None
+                ladders=ladders
             )
 
-        # Cameras
         self.camera = arcade.Camera2D()
         self.gui_camera = arcade.Camera2D()
+
+        self.hp_text = arcade.Text(
+            text=f"HP: {int(self.player.hp)}/{self.player.max_hp}",
+            x=50,
+            y=SCREEN_HEIGHT - 70,
+            color=arcade.color.WHITE,
+            font_size=15,
+            width=300,
+            align="left",
+            anchor_x="left",
+            anchor_y="top"
+        )
+
+    def center_camera(self):
+        self.camera.position = self.player.position
+
+    def on_update(self, delta_time):
+        self.player.change_x = 0
+        if self.left_pressed:
+            self.player.change_x = -PLAYER_MOVEMENT_SPEED
+        if self.right_pressed:
+            self.player.change_x = PLAYER_MOVEMENT_SPEED
+
+        if self.physics_engine.is_on_ladder():
+            self.player.change_y = 0
+            if self.up_pressed:
+                self.player.change_y = PLAYER_MOVEMENT_SPEED
+            elif self.down_pressed:
+                self.player.change_y = -PLAYER_MOVEMENT_SPEED
+
+        self.physics_engine.update()
+        self.player.update(delta_time)
+
+        for enemy in self.enemies:
+            if isinstance(enemy, ArcherEnemy):
+                enemy.update(self.player, delta_time, self.scene)
+            else:
+                enemy.update(self.player, delta_time)
+
+        projectiles = self.scene["Projectiles"]
+        for proj in list(projectiles):
+            hit = False
+            if proj.shooter is self.player:
+                hits = arcade.check_for_collision_with_list(proj, self.enemies)
+                for enemy in hits:
+                    if enemy.is_alive():
+                        enemy.take_damage(proj.damage)
+                        hit = True
+                        break
+            elif isinstance(proj.shooter, Enemy):
+                if arcade.check_for_collision(proj, self.player) and self.player.is_alive():
+                    self.player.take_damage(proj.damage)
+                    hit = True
+            if hit:
+                proj.kill()
+
+        # Melee damage from enemies
+        for enemy in self.enemies:
+            if (isinstance(enemy, MeleeEnemy) and
+                    enemy.is_alive() and
+                    arcade.check_for_collision(self.player, enemy) and
+                    enemy.melee.can_attack() and
+                    self.player.is_alive()):
+                self.player.take_damage(enemy.melee.damage)
+                enemy.melee.last_attack_time = time.time()
+
+        if not self.player.is_alive():
+            self.setup()
+            return
+
+        self.hp_text.text = f"HP: {int(self.player.hp)}/{self.player.max_hp}"
+        self.center_camera()
+        projectiles.update(delta_time)
+
+    def on_draw(self):
+        self.clear()
+
+        with self.camera.activate():
+            self.scene.draw()
+            self.scene["Projectiles"].draw()
+
+        with self.gui_camera.activate():
+            bar_width = 300
+            bar_height = 25
+            left = 50
+            bottom = SCREEN_HEIGHT - 50
+
+            arcade.draw_lbwh_rectangle_filled(left, bottom, bar_width, bar_height, arcade.color.DARK_RED)
+            health_width = max(0, bar_width * (self.player.hp / self.player.max_hp))
+            arcade.draw_lbwh_rectangle_filled(left, bottom, health_width, bar_height, arcade.color.RED)
+
+            self.hp_text.draw()
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.A:
@@ -277,9 +360,9 @@ class GameView(arcade.View):
         elif key == arcade.key.SPACE:
             if self.physics_engine.can_jump():
                 self.player.change_y = PLAYER_JUMP_SPEED
-        elif key == arcade.key.J:  # melee
+        elif key == arcade.key.J:
             self.player.melee.attack(self.enemies)
-        elif key == arcade.key.K:  # ranged
+        elif key == arcade.key.K:
             tx = self.player.center_x + 400 * self.player.facing
             ty = self.player.center_y
             self.player.ranged.attack(tx, ty, self.scene)
@@ -294,77 +377,8 @@ class GameView(arcade.View):
         elif key == arcade.key.S:
             self.down_pressed = False
 
-    def on_update(self, delta_time):
-        # Движение игрока
-        self.player.change_x = 0
-        if self.left_pressed:
-            self.player.change_x = -PLAYER_MOVEMENT_SPEED
-        if self.right_pressed:
-            self.player.change_x = PLAYER_MOVEMENT_SPEED
-
-        # Лестницы
-        if self.physics_engine.is_on_ladder():
-            self.player.change_y = 0
-            if self.up_pressed:
-                self.player.change_y = PLAYER_MOVEMENT_SPEED
-            elif self.down_pressed:
-                self.player.change_y = -PLAYER_MOVEMENT_SPEED
-
-        self.physics_engine.update()
-        self.player.update(delta_time)
-
-        # Обновление врагов
-        for enemy in self.enemies:
-            if isinstance(enemy, ArcherEnemy):
-                enemy.update(self.player, delta_time, self.scene)
-            else:
-                enemy.update(self.player, delta_time)
-
-        # Проверка попаданий снарядов
-        projectiles = self.scene["Projectiles"]
-        for proj in list(projectiles):
-            hit = False
-            if proj.shooter is self.player:
-                hits = arcade.check_for_collision_with_list(proj, self.enemies)
-                for enemy in hits:
-                    if enemy.is_alive():
-                        enemy.take_damage(proj.damage)
-                        hit = True
-            elif isinstance(proj.shooter, Enemy):
-                if arcade.check_for_collision(proj, self.player) and self.player.is_alive():
-                    self.player.take_damage(proj.damage)
-                    hit = True
-            if hit:
-                proj.kill()
-
-        if self.player.hp <= 0:
-            self.setup()
-
-        self.center_camera()
-        projectiles.update(delta_time)
-
-    def center_camera(self):
-        self.camera.position = self.player.position
-
-    def on_draw(self):
-        self.clear()
-
-        with self.camera.activate():
-            self.scene.draw()
-            self.scene["Projectiles"].draw()
-
-        with self.gui_camera.activate():
-            bar_width = 300
-            bar_height = 25
-            left = 50
-            bottom = SCREEN_HEIGHT - 50
-            arcade.draw_lbwh_rectangle_filled(left, bottom, bar_width, bar_height, arcade.color.DARK_RED)
-            health_width = bar_width * (self.hp / self.max_hp)
-            arcade.draw_lbwh_rectangle_filled(left, bottom, health_width, bar_height, arcade.color.RED)
-            arcade.draw_text(f"HP: {int(self.hp)}/{self.max_hp}", left, bottom - 22, arcade.color.WHITE, 15)
-
-
 # ---------------- MENU ---------------- #
+
 
 class MenuView(arcade.View):
     def __init__(self):
