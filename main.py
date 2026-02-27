@@ -112,6 +112,18 @@ class GameView(arcade.View):
 
         projectiles = self.scene["Projectiles"]
         for proj in list(projectiles):
+            proj.center_x += proj.change_x * delta_time * 60
+            proj.center_y += proj.change_y * delta_time * 60
+            proj.lifetime -= delta_time
+
+            if proj.lifetime <= 0:
+                proj.kill()
+                continue
+
+            if arcade.check_for_collision_with_list(proj, walls):
+                proj.kill()
+                continue
+
             hit = False
             if proj.shooter is self.player:
                 hits = arcade.check_for_collision_with_list(proj, self.enemies)
@@ -124,6 +136,7 @@ class GameView(arcade.View):
                 if arcade.check_for_collision(proj, self.player) and self.player.is_alive():
                     self.player.take_damage(proj.damage)
                     hit = True
+
             if hit:
                 proj.kill()
 
@@ -176,11 +189,13 @@ class GameView(arcade.View):
             if self.physics_engine.can_jump():
                 self.player.change_y = PLAYER_JUMP_SPEED
         elif key == arcade.key.J:
-            self.player.melee.attack(self.enemies)
-        elif key == arcade.key.K:
             tx = self.player.center_x + 400 * self.player.facing
             ty = self.player.center_y
-            self.player.ranged.attack(tx, ty, self.scene)
+            self.player.attack_melee(self.enemies)
+        elif key == arcade.key.L:
+            tx = self.player.center_x + 400 * self.player.facing
+            ty = self.player.center_y
+            self.player.attack_ranged(tx, ty, self.scene)
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.A:

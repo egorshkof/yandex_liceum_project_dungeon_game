@@ -12,9 +12,17 @@ class Projectile(arcade.Sprite):
         self.shooter = shooter
         self.lifetime = 4.0
 
-    def update(self, delta_time):
+    def update(self, delta_time: float, walls=None):
+        # двигаемся
         self.center_x += self.change_x * delta_time * 60
         self.center_y += self.change_y * delta_time * 60
+
         self.lifetime -= delta_time
         if self.lifetime <= 0:
             self.kill()
+            return
+
+        # проверка столкновения со стенами
+        if walls and arcade.check_for_collision_with_list(self, walls):
+            self.kill()
+            return

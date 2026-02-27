@@ -1,4 +1,5 @@
 import arcade
+import time
 
 from weapons import MeleeWeapon, RangedWeapon
 from utils import has_line_of_sight
@@ -8,11 +9,11 @@ SCREEN_HEIGHT = 720
 SCREEN_TITLE = "Dungeon Platformer"
 
 TILE_SCALING = 1.0
-PLAYER_SCALING = 0.4
-ENEMY_SCALING = 0.4
+PLAYER_SCALING = 1.25
+ENEMY_SCALING = 0.5
 
 GRAVITY = 1.2
-PLAYER_MOVEMENT_SPEED = 5
+PLAYER_MOVEMENT_SPEED = 7
 PLAYER_JUMP_SPEED = 15
 
 LAYER_OPTIONS = {
@@ -39,18 +40,93 @@ class Character(arcade.Sprite):
 
 class Player(Character):
     def __init__(self):
-        super().__init__("assets/player.png", PLAYER_SCALING, max_hp=100)
+        super().__init__(None, PLAYER_SCALING, max_hp=100)
+
+        self.idle_textures = [arcade.load_texture(f"assets/knight/idle/idle_{i}.png") for i in range(1, 11)]
+        self.walk_textures = [arcade.load_texture(f"assets/knight/run/run_{i}.png") for i in range(1, 11)]
+        self.attack_textures = [arcade.load_texture(f"assets/knight/attack/attack_{i}.gif") for i in range(1, 11)]
+
+        self.textures = self.idle_textures
+        self.cur_texture_index = 0
+        self.texture = self.textures[0]
+
+        self.frame_time = 0.0
+        self.frame_duration = 0.1
+
         self.change_x = 0
         self.change_y = 0
+
         self.melee = MeleeWeapon(self, damage=25, cooldown=0.55)
         self.ranged = RangedWeapon(self, damage=12, cooldown=0.65)
+
         self.physics_engine = None
 
+        self.facing = 1
+
+        # Базовый масштаб
+        self.base_scale = PLAYER_SCALING
+        self.scale_x = self.base_scale
+        self.scale_y = self.base_scale
+
+        self.regen_per_second = 0.5
+        self.last_attack_time = 0.0
+
+    # ================= АТАКИ =================
+
+    def attack_melee(self, targets):
+        if self.melee.attack(targets):
+            self.last_attack_time = time.time()
+
+    def attack_ranged(self, target_x, target_y, scene):
+        if self.ranged.attack(target_x, target_y, scene):
+            self.last_attack_time = time.time()
+
+    # ================= UPDATE =================
+
     def update(self, delta_time):
+
+        # Направление
         if self.change_x > 0:
             self.facing = 1
         elif self.change_x < 0:
             self.facing = -1
+
+        # Зеркалирование
+        self.scale_x = self.base_scale * self.facing
+
+        # Реген HP
+        if self.hp < self.max_hp and self.is_alive():
+            self.hp = min(
+                self.max_hp,
+                self.hp + self.regen_per_second * delta_time
+            )
+
+        now = time.time()
+        attack_duration = 0.5
+
+        # Выбор анимации
+        if now - self.last_attack_time < attack_duration:
+            new_textures = self.attack_textures
+        elif abs(self.change_x) > 0.1 or abs(self.change_y) > 0.1:
+            new_textures = self.walk_textures
+        else:
+            new_textures = self.idle_textures
+
+        # Если анимация сменилась
+        if new_textures is not self.textures:
+            self.textures = new_textures
+            self.cur_texture_index = 0
+            self.frame_time = 0.0
+
+        # Переключение кадров
+        self.frame_time += delta_time
+        if self.frame_time >= self.frame_duration:
+            self.frame_time -= self.frame_duration
+            self.cur_texture_index = (
+                self.cur_texture_index + 1
+            ) % len(self.textures)
+
+            self.texture = self.textures[self.cur_texture_index]
 
 
 class Enemy(Character):

@@ -3,7 +3,7 @@
  <tileset firstgid="1" source="dungeon.tsx"/>
  <layer id="1" name="walls" width="100" height="40">
   <data encoding="base64" compression="zlib">
-   eJzt2MsJgEAQBcGNwQzMP0mvgic/MC1Uwbsv9snZ1lqbpUaDHi16tOjRokeLHi16tOjRokeLHi16tOjRokeLHi3Td+W7t+bpt523n/b1W2nQo0WPFj1a9GjRo0WPFj1a9GjRo0WPFj1a9Gh5emucvq1O7M03dN/9Jz1a9GjRo0WPFj1a9GjRo0WPlul/XrvuALVLH8A=
+   eJzt2EEKg0AQRcE5gzfI/S8ZshNCFpLAPDtV8PfiA8E+1lqHpUaDHi16tOjRokeLHi16tOjRokeLHi16tOjRokeLHi2778pXb827n+28x2m/fta7+/RO7kaPFj1a9GjRo0WPFj1a9GjRo2VSjwlNpvR40aNFj45p36urt8bdt9Ud++Yd/tt9dwo9WvRo0aNFjxY9WvRo0aNFj5bd/7z2vifNDCGv
   </data>
  </layer>
  <layer id="2" name="ladders" width="100" height="40">
