@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="18" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="1">
+ <tileset firstgid="1" source="dungeon.tsx"/>
+ <layer id="1" name="walls" width="18" height="16">
+  <data encoding="base64" compression="zlib">
+   eJwTYmBgEELCxAIhLJhSMGrOqDm4gB8WPGoOfczZj8McfBibOdjUAQCqew7c
+  </data>
+ </layer>
+ <layer id="2" name="ladders" width="18" height="16">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgF5IA6KpnTO2rOqDnDyBxSAQAwDQYB
+  </data>
+ </layer>
+</map>
