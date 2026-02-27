@@ -1,202 +1,14 @@
 import arcade
 import arcade.gui
 import time
-import math
 
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
-SCREEN_TITLE = "Dungeon Platformer"
+from entities import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE,
+    TILE_SCALING, LAYER_OPTIONS,
+    Player, MeleeEnemy, ArcherEnemy, Enemy,
+    GRAVITY, PLAYER_MOVEMENT_SPEED, PLAYER_JUMP_SPEED
+)
 
-TILE_SCALING = 1.0
-PLAYER_SCALING = 0.4
-ENEMY_SCALING = 0.4
-
-GRAVITY = 1.2
-PLAYER_MOVEMENT_SPEED = 5
-PLAYER_JUMP_SPEED = 15
-
-LAYER_OPTIONS = {
-    "walls": {"use_spatial_hash": True},
-    "ladders": {"use_spatial_hash": True},
-}
-
-# ---------------- PROJECTILE ---------------- #
-
-
-class Projectile(arcade.Sprite):
-    def __init__(self, x, y, dx, dy, damage, shooter, speed=10, scale=0.5):
-        super().__init__("assets/arrow.png", scale)
-        self.center_x = x
-        self.center_y = y
-        self.change_x = dx * speed
-        self.change_y = dy * speed
-        self.damage = damage
-        self.shooter = shooter
-        self.lifetime = 4.0
-
-    def update(self, delta_time):
-        self.center_x += self.change_x * delta_time * 60
-        self.center_y += self.change_y * delta_time * 60
-        self.lifetime -= delta_time
-        if self.lifetime <= 0:
-            self.kill()
-
-
-# ---------------- WEAPON ---------------- #
-
-class Weapon:
-    def __init__(self, owner, cooldown):
-        self.owner = owner
-        self.cooldown = cooldown
-        self.last_attack_time = 0
-
-    def can_attack(self):
-        return time.time() - self.last_attack_time >= self.cooldown
-
-
-class MeleeWeapon(Weapon):
-    def __init__(self, owner, damage=20, range_x=50, range_y=35, cooldown=0.6):
-        super().__init__(owner, cooldown)
-        self.damage = damage
-        self.range_x = range_x
-        self.range_y = range_y
-
-    def attack(self, targets):
-        if not self.can_attack():
-            return False
-
-        direction = 1 if self.owner.change_x >= 0 else -1
-        if direction == 0 and hasattr(self.owner, 'facing'):
-            direction = self.owner.facing
-
-        hitbox = arcade.SpriteSolidColor(self.range_x, self.range_y, arcade.color.TRANSPARENT_BLACK)
-        hitbox.center_x = self.owner.center_x + direction * (self.range_x / 2 + 15)
-        hitbox.center_y = self.owner.center_y
-
-        hits = arcade.check_for_collision_with_list(hitbox, targets)
-        for target in hits:
-            if hasattr(target, 'take_damage'):
-                target.take_damage(self.damage)
-
-        self.last_attack_time = time.time()
-        return True
-
-
-class RangedWeapon(Weapon):
-    def __init__(self, owner, damage=10, speed=10, cooldown=0.8):
-        super().__init__(owner, cooldown)
-        self.damage = damage
-        self.speed = speed
-
-    def attack(self, target_x, target_y, scene):
-        if not self.can_attack():
-            return False
-
-        dx = target_x - self.owner.center_x
-        dy = target_y - self.owner.center_y
-        dist = max(1, math.hypot(dx, dy))
-        proj = Projectile(
-            self.owner.center_x,
-            self.owner.center_y,
-            dx / dist,
-            dy / dist,
-            self.damage,
-            self.owner,
-            self.speed
-        )
-        scene["Projectiles"].append(proj)
-        self.last_attack_time = time.time()
-        return True
-
-
-# ---------------- CHARACTERS ---------------- #
-
-class Character(arcade.Sprite):
-    def __init__(self, image, scale, max_hp):
-        super().__init__(image, scale)
-        self.max_hp = max_hp
-        self.hp = max_hp
-        self.facing = 1
-
-    def take_damage(self, amount):
-        self.hp -= amount
-        if self.hp <= 0:
-            self.kill()
-
-    def is_alive(self):
-        return self.hp > 0
-
-
-class Player(Character):
-    def __init__(self):
-        super().__init__("assets/player.png", PLAYER_SCALING, max_hp=100)
-        self.change_x = 0
-        self.change_y = 0
-        self.melee = MeleeWeapon(self, damage=25, cooldown=0.55)
-        self.ranged = RangedWeapon(self, damage=12, cooldown=0.65)
-        self.physics_engine = None
-
-    def update(self, delta_time):
-        if self.change_x > 0:
-            self.facing = 1
-        elif self.change_x < 0:
-            self.facing = -1
-
-
-class Enemy(Character):
-    def __init__(self, image, scale, max_hp, aggro_range=320):
-        super().__init__(image, scale, max_hp)
-        self.aggro_range = aggro_range
-        self.change_x = 0
-        self.change_y = 0
-        self.physics_engine = None
-
-
-class MeleeEnemy(Enemy):
-    def __init__(self):
-        super().__init__("assets/enemy_sword.png", ENEMY_SCALING, max_hp=60, aggro_range=220)
-        self.melee = MeleeWeapon(self, damage=18, range_x=50, range_y=40, cooldown=1.0)
-        self.speed = 2.2
-
-    def update(self, player, delta_time):
-        if not self.is_alive():
-            return
-
-        distance = arcade.get_distance_between_sprites(self, player)
-        if distance <= self.aggro_range:
-            direction = 1 if player.center_x > self.center_x else -1
-            self.change_x = self.speed * direction
-            self.facing = direction
-        else:
-            self.change_x = 0
-
-        if self.physics_engine:
-            self.physics_engine.update()
-
-
-class ArcherEnemy(Enemy):
-    def __init__(self):
-        super().__init__("assets/enemy_bow.png", ENEMY_SCALING, max_hp=40, aggro_range=450)
-        self.ranged = RangedWeapon(self, damage=9, speed=9, cooldown=1.3)
-        self.speed = 0.5
-
-    def update(self, player, delta_time, scene):
-        if not self.is_alive():
-            return
-
-        distance = arcade.get_distance_between_sprites(self, player)
-        if self.aggro_range >= distance > 50:
-            self.ranged.attack(player.center_x, player.center_y, scene)
-
-        direction = 1 if player.center_x > self.center_x else -1
-        self.change_x = self.speed * direction * 0.3
-        self.facing = direction
-
-        if self.physics_engine:
-            self.physics_engine.update()
-
-
-# ---------------- GAME VIEW ---------------- #
 
 class GameView(arcade.View):
     def __init__(self):
@@ -288,9 +100,13 @@ class GameView(arcade.View):
         self.physics_engine.update()
         self.player.update(delta_time)
 
+        walls = self.scene["walls"] if "walls" in self.scene else arcade.SpriteList()
+
         for enemy in self.enemies:
             if isinstance(enemy, ArcherEnemy):
                 enemy.update(self.player, delta_time, self.scene)
+            elif isinstance(enemy, MeleeEnemy):
+                enemy.update(self.player, delta_time, walls)
             else:
                 enemy.update(self.player, delta_time)
 
@@ -311,7 +127,6 @@ class GameView(arcade.View):
             if hit:
                 proj.kill()
 
-        # Melee damage from enemies
         for enemy in self.enemies:
             if (isinstance(enemy, MeleeEnemy) and
                     enemy.is_alive() and
@@ -376,8 +191,6 @@ class GameView(arcade.View):
             self.up_pressed = False
         elif key == arcade.key.S:
             self.down_pressed = False
-
-# ---------------- MENU ---------------- #
 
 
 class MenuView(arcade.View):
