@@ -104,6 +104,8 @@ class GameView(arcade.View):
         self.camera.position = self.player.position
 
     def on_update(self, delta_time):
+        self.music_player.play()
+
         self.player.change_x = 0
         if self.left_pressed:
             self.player.change_x = -PLAYER_MOVEMENT_SPEED
@@ -243,6 +245,9 @@ class GameView(arcade.View):
             self.player.attack_ranged(tx, ty, self.scene)
         elif key == arcade.key.E:
             self.player.try_open_chest(self.scene)
+        elif key == arcade.key.ESCAPE:
+            pause_view = PauseView(self)
+            self.window.show_view(pause_view)
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.A:
@@ -259,28 +264,258 @@ class GameView(arcade.View):
             self.music_player.pause()
 
 
+class PauseView(arcade.View):
+    def __init__(self, game_view):
+        super().__init__()
+        self.game_view = game_view
+
+        self.manager = arcade.gui.UIManager()
+        self.manager.enable()
+
+        arcade.set_background_color(arcade.color.BLACK[:3] + (160,))
+
+        vbox = arcade.gui.UIBoxLayout(space_between=30)
+
+        title = arcade.gui.UILabel(
+            text="ПАУЗА",
+            text_color=arcade.color.WHITE,
+            font_size=48,
+            width=400,
+            height=80,
+        )
+        vbox.add(title)
+
+        resume_btn = arcade.gui.UIFlatButton(
+            text="Продолжить",
+            width=300,
+            height=60,
+            style=self.game_view.button_style if hasattr(self.game_view, 'button_style') else None,
+        )
+        resume_btn.on_click = self.on_resume
+        vbox.add(resume_btn)
+
+        menu_btn = arcade.gui.UIFlatButton(
+            text="В главное меню",
+            width=300,
+            height=60,
+            style=self.game_view.button_style if hasattr(self.game_view, 'button_style') else None,
+        )
+        menu_btn.on_click = self.on_main_menu
+        vbox.add(menu_btn)
+
+        quit_btn = arcade.gui.UIFlatButton(
+            text="Выйти из игры",
+            width=300,
+            height=60,
+            style=self.game_view.button_style if hasattr(self.game_view, 'button_style') else None,
+        )
+        quit_btn.on_click = self.on_quit
+        vbox.add(quit_btn)
+
+        anchor = arcade.gui.UIAnchorLayout()
+        anchor.add(vbox, anchor_x="center_x", anchor_y="center_y")
+        self.manager.add(anchor)
+
+    def on_resume(self, event):
+        self.window.show_view(self.game_view)
+
+    def on_main_menu(self, event):
+        menu = MenuView()
+        self.window.show_view(menu)
+
+    def on_quit(self, event):
+        arcade.exit()
+
+    def on_draw(self):
+        self.game_view.on_draw()
+
+        arcade.draw_lbwh_rectangle_filled(
+            left=0,
+            bottom=0,
+            width=SCREEN_WIDTH,
+            height=SCREEN_HEIGHT,
+            color=(0, 0, 0, 140)
+        )
+
+        self.manager.draw()
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ESCAPE:
+            self.window.show_view(self.game_view)
+
+    def on_show_view(self):
+        self.manager.enable()
+
+    def on_hide_view(self):
+        self.manager.disable()
+
+
 class MenuView(arcade.View):
     def __init__(self):
         super().__init__()
         self.manager = arcade.gui.UIManager()
+        self.manager.enable()
+
+        arcade.set_background_color(arcade.color.BLACK)
+
+        self.volume = 80.0
+        self.fullscreen = False
+
+        self.button_style = {
+            "normal": arcade.gui.UIFlatButton.UIStyle(
+                font_size=24,
+                font_name="Times New Roman",
+                font_color=arcade.color.WHITE,
+                bg=arcade.color.DIM_GRAY,
+            ),
+            "hover": arcade.gui.UIFlatButton.UIStyle(
+                font_size=24,
+                font_name="Times New Roman",
+                font_color=arcade.color.WHITE,
+                bg=arcade.color.SLATE_GRAY,
+            ),
+            "press": arcade.gui.UIFlatButton.UIStyle(
+                font_size=24,
+                font_name="Times New Roman",
+                font_color=arcade.color.WHITE,
+                bg=arcade.color.DARK_SLATE_GRAY,
+            ),
+        }
+
+        self.show_main_menu()
+
+    def show_main_menu(self):
+        self.manager.clear()
+
+        vbox = arcade.gui.UIBoxLayout(space_between=20)
+
+        title = arcade.gui.UILabel(
+            text="Dungeon Platformer",
+            text_color=arcade.color.LIGHT_GOLDENROD_YELLOW,
+            font_size=48,
+            font_name="Times New Roman",
+            width=600,
+        )
+
+        vbox.add(title)
+        vbox.add(arcade.gui.UISpace(height=40))
+
+        play_btn = arcade.gui.UIFlatButton(
+            text="Играть",
+            width=280,
+            height=60,
+            style=self.button_style,
+        )
+        play_btn.on_click = self.on_play
+        vbox.add(play_btn)
+
+        settings_btn = arcade.gui.UIFlatButton(
+            text="Настройки",
+            width=280,
+            height=60,
+            style=self.button_style,
+        )
+        settings_btn.on_click = self.on_settings
+        vbox.add(settings_btn)
+
+        exit_btn = arcade.gui.UIFlatButton(
+            text="Выход",
+            width=280,
+            height=60,
+            style=self.button_style,
+        )
+        exit_btn.on_click = self.on_exit
+        vbox.add(exit_btn)
+
+        anchor = arcade.gui.UIAnchorLayout()
+        anchor.add(vbox, anchor_x="center_x", anchor_y="center_y")
+        self.manager.add(anchor)
+
+    def show_settings(self):
+        self.manager.clear()
+
+        vbox = arcade.gui.UIBoxLayout(space_between=15)
+
+        title = arcade.gui.UILabel(
+            text="Настройки",
+            text_color=arcade.color.LIGHT_CYAN,
+            font_size=38,
+            width=500,
+        )
+        vbox.add(title)
+        vbox.add(arcade.gui.UISpace(height=30))
+
+        # Громкость
+        vol_label = arcade.gui.UILabel(
+            text=f"Громкость: {int(self.volume)}%",
+            font_size=22,
+            width=400,
+        )
+        vbox.add(vol_label)
+
+        vol_slider = arcade.gui.UISlider(
+            value=self.volume,
+            min=0,
+            max=100,
+            width=400,
+            height=30,
+        )
+
+        def update_volume(event):
+            self.volume = vol_slider.value
+            vol_label.text = f"Громкость: {int(self.volume)}%"
+
+        vol_slider.on_change = update_volume
+        vbox.add(vol_slider)
+        vbox.add(arcade.gui.UISpace(height=25))
+
+        # Полноэкранный режим (кнопка-переключатель)
+        fs_btn = arcade.gui.UIFlatButton(
+            text=f"Полноэкранный режим: {'ВКЛ' if self.fullscreen else 'ВЫКЛ'}",
+            width=340,
+            height=50,
+            style=self.button_style,
+        )
+
+        def toggle_fullscreen(event):
+            self.fullscreen = not self.fullscreen
+            self.window.set_fullscreen(self.fullscreen)
+            fs_btn.text = f"Полноэкранный режим: {'ВКЛ' if self.fullscreen else 'ВЫКЛ'}"
+
+        fs_btn.on_click = toggle_fullscreen
+        vbox.add(fs_btn)
+        vbox.add(arcade.gui.UISpace(height=30))
+
+        # Назад
+        back_btn = arcade.gui.UIFlatButton(
+            text="Назад",
+            width=220,
+            height=50,
+            style=self.button_style,
+        )
+        back_btn.on_click = lambda e: self.show_main_menu()
+        vbox.add(back_btn)
+
+        anchor = arcade.gui.UIAnchorLayout()
+        anchor.add(vbox, anchor_x="center_x", anchor_y="center_y")
+        self.manager.add(anchor)
+
+    def on_play(self, event):
+        game_view = GameView()
+        game_view.setup()
+        self.window.show_view(game_view)
+
+    def on_settings(self, event):
+        self.show_settings()
+
+    def on_exit(self, event):
+        arcade.exit()
 
     def on_show_view(self):
         self.manager.enable()
-        self.manager.clear()
-        start_button = arcade.gui.UIFlatButton(text="Играть", width=200, height=50)
 
-        @start_button.event("on_click")
-        def on_click(event):
-            game = GameView()
-            game.setup()
-            self.window.show_view(game)
-
-        v_box = arcade.gui.UIBoxLayout()
-        v_box.add(start_button)
-
-        anchor = arcade.gui.UIAnchorLayout()
-        anchor.add(child=v_box, anchor_x="center_x", anchor_y="center_y")
-        self.manager.add(anchor)
+    def on_hide_view(self):
+        self.manager.disable()
 
     def on_draw(self):
         self.clear()
@@ -288,7 +523,13 @@ class MenuView(arcade.View):
 
 
 def main():
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    window = arcade.Window(
+        width=SCREEN_WIDTH,
+        height=SCREEN_HEIGHT,
+        title=SCREEN_TITLE,
+        resizable=True,
+        antialiasing=True
+    )
     window.show_view(MenuView())
     arcade.run()
 

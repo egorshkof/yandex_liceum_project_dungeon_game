@@ -1,5 +1,4 @@
 import arcade
-import random
 import time
 
 from weapons import MeleeWeapon, RangedWeapon
