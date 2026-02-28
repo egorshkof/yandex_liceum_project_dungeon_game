@@ -31,9 +31,14 @@ class Character(arcade.Sprite):
         self.facing = 1
         self.armor = 0.0
 
+        self.hurt_sound = arcade.load_sound("assets/music/fight.mp3")
+
     def take_damage(self, amount):
         reduced = amount * (1 - self.armor)
         self.hp -= reduced
+
+        if reduced > 0.1:
+            arcade.play_sound(self.hurt_sound, volume=0.7)
 
         if self.hp <= 0:
             self.kill()
@@ -154,6 +159,8 @@ class Enemy(Character):
         self.change_x = 0
         self.change_y = 0
         self.physics_engine = None
+
+        self.hurt_sound = arcade.load_sound("assets/music/fight.mp3")
 
 
 class MeleeEnemy(Enemy):

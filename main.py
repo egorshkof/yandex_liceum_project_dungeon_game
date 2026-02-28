@@ -26,6 +26,8 @@ class GameView(arcade.View):
         self.hp_text = None
         self.mouse_world_x = 0
         self.mouse_world_y = 0
+        self.background_music = arcade.load_sound("assets/music/background_loop.mp3")  # или .ogg, .wav
+        self.music_player = None
 
     def setup(self):
         tile_map = arcade.load_tilemap("assets/level_1.tmx", scaling=TILE_SCALING, layer_options=LAYER_OPTIONS)
@@ -81,6 +83,9 @@ class GameView(arcade.View):
             anchor_x="left",
             anchor_y="top"
         )
+
+        if self.music_player is None or not self.music_player.playing:
+            self.music_player = arcade.play_sound(self.background_music, volume=0.35, loop=True)
 
     def on_mouse_motion(self, x, y, dx, dy):
         world = self.camera.unproject((x, y))
@@ -248,6 +253,10 @@ class GameView(arcade.View):
             self.up_pressed = False
         elif key == arcade.key.S:
             self.down_pressed = False
+
+    def on_hide_view(self):
+        if self.music_player:
+            self.music_player.pause()
 
 
 class MenuView(arcade.View):
