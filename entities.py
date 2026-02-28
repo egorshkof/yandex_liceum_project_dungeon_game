@@ -55,13 +55,14 @@ class Player(Character):
         self.idle_textures = [arcade.load_texture(f"assets/knight/idle/idle_{i}.png") for i in range(1, 11)]
         self.walk_textures = [arcade.load_texture(f"assets/knight/run/run_{i}.png") for i in range(1, 11)]
         self.attack_textures = [arcade.load_texture(f"assets/knight/attack/attack_{i}.gif") for i in range(1, 11)]
+        self.jump_textures = [arcade.load_texture(f"assets/knight/jump/jump_{i}.png") for i in range(1, 4)]
 
         self.textures = self.idle_textures
         self.cur_texture_index = 0
         self.texture = self.textures[0]
 
         self.frame_time = 0.0
-        self.frame_duration = 0.1
+        self.frame_duration = 0.08
 
         self.melee = MeleeWeapon(self, damage=25, cooldown=0.55)
         self.ranged = RangedWeapon(self, damage=10, cooldown=0.0)
@@ -74,14 +75,12 @@ class Player(Character):
         self.regen_per_second = 0.5
         self.last_attack_time = 0.0
 
-        # ===== Система заряда выстрела =====
         self.is_charging = False
         self.charge_time = 0.0
         self.max_charge_time = 2.0
         self.min_damage = 10
         self.max_damage = 40
 
-    # ---------- Заряд ----------
     def start_charging(self):
         self.is_charging = True
         self.charge_time = 0.0
@@ -93,7 +92,6 @@ class Player(Character):
         charge_ratio = min(1.0, self.charge_time / self.max_charge_time)
         damage = self.min_damage + (self.max_damage - self.min_damage) * charge_ratio
 
-        # временно меняем урон
         original_damage = self.ranged.damage
         self.ranged.damage = damage
         self.ranged.attack(target_x, target_y, scene)
@@ -102,9 +100,14 @@ class Player(Character):
         self.is_charging = False
         self.charge_time = 0.0
 
-    # ---------- Update ----------
-    def update(self, delta_time):
+    def attack_melee(self, targets):
+        if self.melee.attack(targets):
+            self.last_attack_time = time.time()
 
+    def attack_ranged(self, target_x, target_y, scene):
+        self.ranged.attack(target_x, target_y, scene)
+
+    def update(self, delta_time: float):
         if self.change_x > 0:
             self.facing = 1
         elif self.change_x < 0:
@@ -119,12 +122,16 @@ class Player(Character):
             self.charge_time += delta_time
 
         now = time.time()
-        attack_duration = 0.5
 
-        if now - self.last_attack_time < attack_duration:
+        if now - self.last_attack_time < 0.50:
             new_textures = self.attack_textures
-        elif abs(self.change_x) > 0.1 or abs(self.change_y) > 0.1:
+
+        elif abs(self.change_y) > 1.0:  # прыжок вверх или падение
+            new_textures = self.jump_textures
+
+        elif abs(self.change_x) > 0.1 or abs(self.change_y) > 0.4:
             new_textures = self.walk_textures
+
         else:
             new_textures = self.idle_textures
 
@@ -136,16 +143,8 @@ class Player(Character):
         self.frame_time += delta_time
         if self.frame_time >= self.frame_duration:
             self.frame_time -= self.frame_duration
-            self.cur_texture_index = (
-                self.cur_texture_index + 1
-            ) % len(self.textures)
+            self.cur_texture_index = (self.cur_texture_index + 1) % len(self.textures)
             self.texture = self.textures[self.cur_texture_index]
-
-    def attack_melee(self, targets):
-        self.melee.attack(targets)
-
-    def attack_ranged(self, target_x, target_y, scene):
-        self.ranged.attack(target_x, target_y, scene)
 
 
 class Enemy(Character):
