@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="1">
  <tileset firstgid="1" source="dungeon.tsx"/>
  <layer id="1" name="walls" width="100" height="40">
   <data encoding="base64" compression="zlib">
-   eJzt2EEKg0AQRcE5gzfI/S8ZshNCFpLAPDtV8PfiA8E+1lqHpUaDHi16tOjRokeLHi16tOjRokeLHi16tOjRokeLHi2778pXb827n+28x2m/fta7+/RO7kaPFj1a9GjRo0WPFj1a9GjRo2VSjwlNpvR40aNFj45p36urt8bdt9Ud++Yd/tt9dwo9WvRo0aNFjxY9WvRo0aNFj5bd/7z2vifNDCGv
+   eJzt2UEOgjAUBuF3BhIPwL0MFzDef4vdsbCiUuj0ZSb5lySkX2RRp4iYHGrGSA9WerDSg5UerPRgpQcrPVjpwUoPVnqw0oOVHqz0YFUs7tH/fvnbu+be77bdvFnrdx292pmMlh6s9GClBys9WOnBSg9WerDSg1UmjwwmWTxKerDSg1Om79Wn+92l8hztTvjs1c6h9VkskeP3kaUs36ss6cFKj/7dIt//g6P1zkCPa9sz0OOafnHQ47z+cdCjfUccyh4Hn3ft9nxtBdE5KIM=
   </data>
  </layer>
  <layer id="2" name="ladders" width="100" height="40">
   <data encoding="base64" compression="zlib">
    eJzt1DEKgDAABMH8H/yziFwj2ogxx7JTWkg2BxlDkiRJkiRJkiQdttUH+BChhdAQhBZCQxBaCA1BaCE0BKGF0BCEFkJDEFoIDUFoITQEoYXQEIQWQkMQWggNQWghNAShhdAQhJaZDdd/E+7rjbvuFXfhHif36LKNjrtoOEMD9+jie9XFPXrcvVXj4dts7uEejdyjS8se+tcO8uMoNg==
+  </data>
+ </layer>
+ <layer id="4" name="chests" width="100" height="40">
+  <data encoding="base64" compression="zlib">
+   eJztyyENAAAIADD6awrQFMlIgOD3jwAAAAAAAAAAAAAAAAAAgJHHn62OP780ookCaw==
   </data>
  </layer>
 </map>

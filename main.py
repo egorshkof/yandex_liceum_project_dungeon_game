@@ -24,6 +24,8 @@ class GameView(arcade.View):
         self.down_pressed = False
         self.enemies = arcade.SpriteList()
         self.hp_text = None
+        self.mouse_world_x = 0
+        self.mouse_world_y = 0
 
     def setup(self):
         tile_map = arcade.load_tilemap("assets/level_1.tmx", scaling=TILE_SCALING, layer_options=LAYER_OPTIONS)
@@ -79,6 +81,19 @@ class GameView(arcade.View):
             anchor_x="left",
             anchor_y="top"
         )
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        world = self.camera.unproject((x, y))
+        self.mouse_world_x, self.mouse_world_y = world[0], world[1]
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            self.player.start_charging()
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            world = self.camera.unproject((x, y))
+            self.player.release_shot(world[0], world[1], self.scene)
 
     def center_camera(self):
         self.camera.position = self.player.position
@@ -162,7 +177,34 @@ class GameView(arcade.View):
 
         with self.camera.activate():
             self.scene.draw()
+
+            # ===== Полоска заряда =====
+            if self.player.is_charging:
+                ratio = min(1.0, self.player.charge_time / self.player.max_charge_time)
+
+                bar_width = 60 * ratio
+                bar_height = 8
+
+                left = self.player.center_x - 30
+                bottom = self.player.top + 20
+
+                arcade.draw_lbwh_rectangle_filled(left, bottom, bar_width, bar_height, arcade.color.YELLOW)
+
             self.scene["Projectiles"].draw()
+
+            # ===== HP БАРЫ ВРАГОВ =====
+            for enemy in self.enemies:
+                if not enemy.is_alive():
+                    continue
+
+                bar_width = 40
+                bar_height = 6
+                left = enemy.center_x - bar_width / 2
+                bottom = enemy.top + 10
+
+                arcade.draw_lbwh_rectangle_filled(left, bottom, bar_width, bar_height, arcade.color.DARK_RED)
+                health_ratio = enemy.hp / enemy.max_hp
+                arcade.draw_lbwh_rectangle_filled(left, bottom, bar_width * health_ratio, bar_height, arcade.color.RED)
 
         with self.gui_camera.activate():
             bar_width = 300
@@ -172,8 +214,8 @@ class GameView(arcade.View):
 
             arcade.draw_lbwh_rectangle_filled(left, bottom, bar_width, bar_height, arcade.color.DARK_RED)
             health_width = max(0, bar_width * (self.player.hp / self.player.max_hp))
-            arcade.draw_lbwh_rectangle_filled(left, bottom, health_width, bar_height, arcade.color.RED)
 
+            arcade.draw_lbwh_rectangle_filled(left, bottom, health_width, bar_height, arcade.color.RED)
             self.hp_text.draw()
 
     def on_key_press(self, key, modifiers):
@@ -189,13 +231,13 @@ class GameView(arcade.View):
             if self.physics_engine.can_jump():
                 self.player.change_y = PLAYER_JUMP_SPEED
         elif key == arcade.key.J:
-            tx = self.player.center_x + 400 * self.player.facing
-            ty = self.player.center_y
             self.player.attack_melee(self.enemies)
         elif key == arcade.key.L:
             tx = self.player.center_x + 400 * self.player.facing
             ty = self.player.center_y
             self.player.attack_ranged(tx, ty, self.scene)
+        elif key == arcade.key.E:
+            self.player.try_open_chest(self.scene)
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.A:
